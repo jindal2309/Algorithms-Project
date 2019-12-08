@@ -1,6 +1,5 @@
 import sys
 import time
-from collections import defaultdict
 
 class Direction:
 	OLD_TO_NEW = 1
@@ -12,97 +11,81 @@ class CONST:
 		self.MAX_M = MAX_M
 		self.MAX_C = MAX_C
 		self.CAP_BOAT = CAP_BOAT
-
 		self.MAX_TIME = MAX_TIME_S
 
 class Graph:
 
-	def __init__(self):
+    def __init__(self):
 
-		self.bfs_parent = {}
-		self.dfs_parent = {}
+        self.bfs_parent = {}
+        self.dfs_parent = {}
+    
+    def BFS(self, s):
+        queue = []
+        queue.append(s)
+        visited = {}
+        self.bfs_parent[s] = None
+        start_time = time.time()
+        while len(queue):
+            u = queue.pop(0)
+            visited[(u.missionaries, u.cannibals, u.dir)] = 1
+            # return if goal state i.e. cannibals = 0, missionaries = 0, boat direction = 0            
+            if u.isGoalState():
+                self.bfs_parent[TERMINAL_STATE] = u
+                queue.clear()
+                return self.bfs_parent
+            
+            if time.time()-start_time > u.CONSTANTS.MAX_TIME:
+                queue.clear()
+                return {}
+            # Stops searching after a certain time limit            
+            for v in u.successors():
+                if visited.get((v.missionaries, v.cannibals, v.dir), 0) == 0:
+                    queue.append(v)
+                    self.bfs_parent[v] = u
+        return {}       
+                  
+    def DFS(self, s):
+        stack = []
+        stack.append(s)
+        visited = {}
+        self.dfs_parent[s] = None
+        start_time = time.time()
+        while len(stack):
+            u = stack.pop()
+            visited[(u.missionaries, u.cannibals, u.dir)] = 1
+            # return if goal state i.e. cannibals = 0, missionaries = 0, boat direction = 0            
+            if u.isGoalState():
+                self.dfs_parent[TERMINAL_STATE] = u
+                stack.clear()
+                return self.dfs_parent
+            # Stops searching after a certain time limit             
+            if time.time()-start_time > u.CONSTANTS.MAX_TIME:
+                stack.clear()
+                return {}
+            
+            for v in u.successors():
+                if visited.get((v.missionaries, v.cannibals, v.dir), 0) == 0:
+                    stack.append(v)
+                    self.dfs_parent[v] = u
+        return {}       
+                  
 
-		self.expandedBFS = 0
-		self.expandedDFS = 0
 
-	def BFS(self, s):
-		self.expandedBFS = 0
-		self.bfs_parent[s] = None
-		visited = {(s.missionaries, s.cannibals, s.dir): True}
-		s.level = 0
+    # Prints the path returned by BFS/DFS
+    def printPath(self, parentList, tail):
+        if parentList == {} or parentList is None or tail is None:
+            return
+        if tail == TERMINAL_STATE: 
+            tail = parentList[tail]
 
-		start_time = time.time()
-		queue = [s]
-		while queue:
-			self.expandedBFS += 1
+        state_list = []
+        while tail is not None:
+            state_list.append(tail)
+            tail = parentList[tail]
 
-			u = queue.pop(0)
-
-			if u.isGoalState():
-				queue.clear()
-				self.bfs_parent[TERMINAL_STATE] = u
-				return self.bfs_parent
-
-			# Stops searching after a certain time limit 
-			t = time.time() - start_time
-			if t > u.CONSTANTS.MAX_TIME:
-				queue.clear()
-				return {}
-
-			for v in reversed(u.successors()):
-				if (v.missionaries, v.cannibals, v.dir) not in visited.keys():
-					self.bfs_parent[v] = u
-					v.level = u.level + 1
-					queue.append(v)
-					visited[(v.missionaries, v.cannibals, v.dir)] = True
-
-		return {}
-
-	def DFS(self, s):
-		self.expandedDFS = 0
-		self.dfs_parent[s] = None
-		visited = {(s.missionaries, s.cannibals, s.dir): True}
-
-		start_time = time.time()
-		stack = [s]
-		while stack:
-			u = stack.pop()
-			self.expandedDFS += 1
-
-			if u.isGoalState():
-				self.dfs_parent[TERMINAL_STATE] = u
-				stack.clear()
-				return self.dfs_parent
-
-			t = time.time() - start_time
-			# Stops searching after a certain time limit 
-			if t > u.CONSTANTS.MAX_TIME:
-				stack.clear()
-				return {}
-
-			for v in u.successors():
-				if (v.missionaries, v.cannibals, v.dir) not in visited.keys():
-					visited[(v.missionaries, v.cannibals, v.dir)] = True
-					self.dfs_parent[v] = u
-					stack.append(v)
-		return {}
-
-	# Prints the path returned by BFS/DFS
-	def printPath(self, parentList, tail):
-		if tail is None:
-			return
-		if parentList == {} or parentList is None:  # tail not in parentList.keys():
-			return
-		if tail == TERMINAL_STATE: tail = parentList[tail]
-
-		stack = []
-
-		while tail is not None:
-			stack.append(tail)
-			tail = parentList[tail]
-
-		while stack:
-			print(stack.pop())
+        while state_list:
+            print(state_list.pop(-1))
 
 
 CON_IN = sys.stdin
@@ -228,17 +211,21 @@ class State(object):
 TERMINAL_STATE = State(-1, -1, Direction.NEW_TO_OLD, -1, -1, 0, CNST,None)
 
 def main():
-	m = int(input("m="))
-	c = int(input("c="))
-	k = int(input("k="))
-	t = int(input("TIME_LIMIT_s="))
+#	m = int(input("m="))
+#	c = int(input("c="))
+#	k = int(input("k="))
+#	t = int(input("TIME_LIMIT_s="))
 
+	m = 4
+	c = 4
+	k = 3
+	t = 10000
 	CNST = CONST(m, c, k, t)
-
 	moves = genPossibleMoves(CNST.CAP_BOAT)
 
 	INITIAL_STATE = State(CNST.MAX_M, CNST.MAX_C, Direction.OLD_TO_NEW, 0, 0, 0, CNST, moves)
 	g = Graph()
+
 	sys.stdout = CON_OUT
 	print("\nRunning BFS>")
 	runBFS(g, INITIAL_STATE)
